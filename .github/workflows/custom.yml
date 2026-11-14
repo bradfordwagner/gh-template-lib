@@ -1,17 +1,4 @@
 name: custom
-# TODO: not implemented. Consumers of flavor 'custom' stay on dagger-container-builds until this lands.
-# See docs/migration.md for the plan. What this workflow needs:
-#
-# - product: builds x archs from config.yaml (`os`, `archs`, `args`, `upstream.repo`/`upstream.tag`).
-#   Entry fields, in order: arch, os, runner, target_image, upstream_image, index, display.
-#   target_image = <target_repo>:<version>-<os>; upstream_image = <upstream.repo>:<upstream.tag>-<os>;
-#   display = "<i>:<os>-<version>(<arch>)". Same runner and ARC rules as mirror.yml.
-# - build: `docker buildx build` on the caller's own Dockerfile, context `.`, with `--build-arg k=v` for every
-#   key of the matching build's `args` (matched by `os`, first wins) plus `--build-arg OS=<upstream_image>`.
-#   Push to <target_image>-<os>_<arch>, provenance and sbom off.
-# - manifest: same as mirror.yml.
-# - upstream bases are on ghcr.io, so on ARC `registry_cache` needs the ghcr.io mirror, not only docker.io.
-# - consumers: gh-template-custom-image, container-ansible.
 on:
   workflow_call:
     inputs:
@@ -23,16 +10,258 @@ on:
         description: Path to the flavor config, relative to the caller's repo root.
         type: string
         default: config.yaml
+      arc:
+        description: >-
+          `auto` sends arm64 builds to the ARC label while the caller repo's `ARC_HOSTS` variable is set,
+          `on` always does, `off` never does.
+        type: string
+        default: auto
+      arc_runner_label:
+        description: runs-on label of the ARC arm64 scale sets.
+        type: string
+        default: arc-arm64
+      buildx_driver:
+        description: >-
+          buildx driver. `docker` builds on the runner's own daemon (hosted, or dind on ARC).
+          `remote` with `buildx_endpoint` is the seam for a shared BuildKit.
+        type: string
+        default: docker
+      buildx_endpoint:
+        description: BuildKit address for `buildx_driver=remote`, e.g. `tcp://buildkitd.buildkit:1234`.
+        type: string
+        default: ''
+      registry_cache:
+        description: >-
+          On ARC jobs only, pull docker.io and ghcr.io bases through the plain-HTTP registry pull-through caches.
+          Switches the `docker` driver to `docker-container` so BuildKit can carry per-registry mirrors.
+        type: boolean
+        default: false
+      registry_cache_dockerio:
+        description: Pull-through cache for docker.io.
+        type: string
+        default: host.k3d.internal:5001
+      registry_cache_ghcr:
+        description: Pull-through cache for ghcr.io.
+        type: string
+        default: host.k3d.internal:5002
+      buildkit_version:
+        description: moby/buildkit tag for the `docker-container` driver.
+        type: string
+        # renovate: datasource=docker depName=moby/buildkit
+        default: v0.35.0
+    outputs:
+      product:
+        description: The build matrix, one entry per build and arch, as JSON.
+        value: ${{ jobs.product.outputs.product }}
+      images:
+        description: The multi-arch tags the manifest job pushed, as a JSON list.
+        value: ${{ jobs.manifest.outputs.images }}
 
 permissions:
   contents: read
 
 jobs:
-  todo:
-    name: todo
+  product:
+    name: product
     runs-on: ubuntu-24.04
+    outputs:
+      product: ${{ steps.product.outputs.product }}
+      build_args: ${{ steps.product.outputs.build_args }}
     steps:
-      - name: not implemented
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: product
+        id: product
+        env:
+          CONFIG: ${{ inputs.config }}
+          VERSION: ${{ inputs.version }}
+          ARC: ${{ inputs.arc }}
+          ARC_LABEL: ${{ inputs.arc_runner_label }}
+          # vars here are the caller repo's, not this repo's
+          ARC_HOSTS: ${{ vars.ARC_HOSTS }}
         run: |
-          echo "::error::gh-template-lib: flavor 'custom' is not implemented yet; keep using dagger-container-builds"
-          exit 1
+          set -euo pipefail
+          flavor=$(yq '.flavor' "$CONFIG")
+          if [ "$flavor" != custom ]; then
+            echo "::error file=$CONFIG::flavor is '$flavor'; custom.yml builds only 'custom'"
+            exit 1
+          fi
+          case "$ARC" in
+            auto) if [ -n "${ARC_HOSTS:-}" ]; then arc_on=true; else arc_on=false; fi ;;
+            on) arc_on=true ;;
+            off) arc_on=false ;;
+            *) echo "::error::arc must be auto, on or off, got '$ARC'"; exit 1 ;;
+          esac
+
+          # yaml.v2 decodes any scalar into a string field as its source text: tag 3.10 stays "3.10"
+          config_json=$(yq -o=json '(.. | select(tag == "!!int" or tag == "!!float" or tag == "!!bool")) |= to_string' "$CONFIG")
+
+          product=$(jq -c --arg version "$VERSION" --argjson arc "$arc_on" --arg arc_label "$ARC_LABEL" '
+            (.target_repo // "") as $target_repo
+            | "\(.upstream.repo // ""):\(.upstream.tag // "")" as $upstream
+            | [ (.builds // [])[] as $b | ($b.archs // [])[] as $a | {b: $b, a: ($a // "")} ]
+            | to_entries
+            | map(
+                .key as $i | .value.b as $b | .value.a as $arch
+                | ($b.os // "") as $os
+                | {
+                    arch: $arch,
+                    os: $os,
+                    runner: (if $arch == "linux/arm64"
+                             then (if $arc then $arc_label else "ubuntu-24.04-arm" end)
+                             else "ubuntu-24.04" end),
+                    target_image: "\($target_repo):\($version)-\($os)",
+                    upstream_image: "\($upstream)-\($os)",
+                    index: $i,
+                    display: "\($i):\($os)-\($version)(\($arch))"
+                  })
+            | if length == 0 then null else . end
+          ' <<<"$config_json" | sed -e 's/&/\\u0026/g' -e 's/</\\u003c/g' -e 's/>/\\u003e/g')
+
+          # args of the first build with the entry's os, then OS last so it wins, as Dagger's DockerBuild got them
+          build_args=$(jq -c --argjson product "$product" '
+            (.builds // []) as $builds
+            | [ ($product // [])[] as $p
+                | ([$builds[] | select((.os // "") == $p.os)][0].args // {})
+                | [to_entries[] | select(.key != "OS") | "\(.key)=\(.value // "")"] + ["OS=\($p.upstream_image)"]
+              ]' <<<"$config_json")
+
+          echo "product=$product" >> "$GITHUB_OUTPUT"
+          echo "build_args=$build_args" >> "$GITHUB_OUTPUT"
+          jq . <<<"$product"
+
+  builds:
+    name: ${{ matrix.product.display }}
+    needs: product
+    runs-on: ${{ matrix.product.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        product: ${{ fromJSON(needs.product.outputs.product) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # another job on a shared runner logging out would drop our credentials
+      # https://github.com/docker/login-action/issues/173#issuecomment-1079688020
+      - name: Set DOCKER_CONFIG
+        run: |
+          id=docker_configs/${RANDOM}
+          mkdir -p "$HOME/${id}/.docker"
+          echo "DOCKER_CONFIG=$HOME/${id}/.docker" >> "$GITHUB_ENV"
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        name: login=ghcr.io
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+          logout: false
+      - name: buildx=config
+        id: buildx
+        env:
+          DRIVER: ${{ inputs.buildx_driver }}
+          ENDPOINT: ${{ inputs.buildx_endpoint }}
+          ON_ARC: ${{ matrix.product.runner == inputs.arc_runner_label }}
+          REGISTRY_CACHE: ${{ inputs.registry_cache }}
+          CACHE_DOCKERIO: ${{ inputs.registry_cache_dockerio }}
+          CACHE_GHCR: ${{ inputs.registry_cache_ghcr }}
+          BUILDKIT_VERSION: ${{ inputs.buildkit_version }}
+        run: |
+          set -euo pipefail
+          driver=$DRIVER
+          config=''
+          opts=''
+          if [ "$REGISTRY_CACHE" = true ] && [ "$ON_ARC" = true ] && [ "$driver" != remote ]; then
+            driver=docker-container
+            config=$(printf '[registry."%s"]\n  mirrors = ["%s"]\n[registry."%s"]\n  http = true\n' \
+              docker.io "$CACHE_DOCKERIO" "$CACHE_DOCKERIO" \
+              ghcr.io "$CACHE_GHCR" "$CACHE_GHCR")
+          fi
+          if [ "$driver" = docker-container ]; then
+            opts="image=moby/buildkit:$BUILDKIT_VERSION,network=host"
+          fi
+          if [ "$driver" = remote ] && [ -z "$ENDPOINT" ]; then
+            echo "::error::buildx_driver=remote needs buildx_endpoint"
+            exit 1
+          fi
+          {
+            echo "driver=$driver"
+            echo "endpoint=$ENDPOINT"
+            echo "opts=$opts"
+            echo "config<<EOF"
+            echo "$config"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: steps.buildx.outputs.driver != 'docker'
+        with:
+          driver: ${{ steps.buildx.outputs.driver }}
+          endpoint: ${{ steps.buildx.outputs.endpoint }}
+          driver-opts: ${{ steps.buildx.outputs.opts }}
+          buildkitd-config-inline: ${{ steps.buildx.outputs.config }}
+      - name: build=${{ matrix.product.arch }}
+        env:
+          BUILD_ARGS: ${{ toJSON(fromJSON(needs.product.outputs.build_args)[matrix.product.index]) }}
+          TARGET: ${{ matrix.product.target_image }}
+          ARCH: ${{ matrix.product.arch }}
+        run: |
+          set -euo pipefail
+          args=()
+          while IFS= read -r -d '' arg; do
+            args+=(--build-arg "$arg")
+          done < <(jq -j '.[] | ., "\u0000"' <<<"$BUILD_ARGS")
+          printf '%s\n' "${args[@]}"
+          # provenance/sbom off keeps each per-arch tag a single manifest, as the Dagger module pushed
+          docker buildx build \
+            --platform "$ARCH" \
+            "${args[@]}" \
+            --provenance=false \
+            --sbom=false \
+            --push \
+            --tag "$TARGET-${ARCH//\//_}" \
+            .
+
+  manifest:
+    name: manifest
+    needs: [product, builds]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      images: ${{ steps.manifest.outputs.images }}
+    steps:
+      - name: Set DOCKER_CONFIG
+        run: |
+          id=docker_configs/${RANDOM}
+          mkdir -p "$HOME/${id}/.docker"
+          echo "DOCKER_CONFIG=$HOME/${id}/.docker" >> "$GITHUB_ENV"
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        name: login=ghcr.io
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+          logout: false
+      - name: manifest
+        id: manifest
+        env:
+          PRODUCT: ${{ needs.product.outputs.product }}
+        run: |
+          set -euo pipefail
+          groups=$(jq -c '
+            reduce .[] as $p ([];
+              if any(.[]; .image == $p.target_image)
+              then map(if .image == $p.target_image then .archs += [$p.arch] else . end)
+              else . + [{image: $p.target_image, archs: [$p.arch]}] end)
+            | map(.archs |= unique)' <<<"$PRODUCT")
+          while read -r group; do
+            image=$(jq -r .image <<<"$group")
+            mapfile -t sources < <(jq -r --arg image "$image" '.archs[] | "\($image)-\(gsub("/"; "_"))"' <<<"$group")
+            docker buildx imagetools create --tag "$image" "${sources[@]}"
+          done < <(jq -c '.[]' <<<"$groups")
+          echo "images=$(jq -c 'map(.image)' <<<"$groups")" >> "$GITHUB_OUTPUT"

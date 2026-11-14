@@ -9,7 +9,7 @@ Each flavor is one reusable workflow, named after the `flavor:` in `config.yaml`
 | Flavor | Workflow | Status |
 |---|---|---|
 | `mirror` | `.github/workflows/mirror.yml` | implemented |
-| `custom` | `.github/workflows/custom.yml` | TODO (stub fails) |
+| `custom` | `.github/workflows/custom.yml` | implemented |
 | `ansible_playbook` | `.github/workflows/ansible_playbook.yml` | implemented |
 | `ansible_role` | `.github/workflows/ansible_role.yml` | TODO (stub fails) |
 
@@ -102,6 +102,29 @@ the upstream image's own (`/src` for `ghcr.io/bradfordwagner/ansible`). Pushes
 
 Outputs: `product` (the matrix JSON) and `images` (the multi-arch tags pushed).
 
+## `config.yaml` (custom)
+
+```yaml
+target_repo: ghcr.io/bradfordwagner/gh-template-custom-image
+flavor: custom
+upstream:
+  repo: ghcr.io/bradfordwagner/base
+  tag: 4.7.1
+builds:
+  - os: alpine_3.24
+    archs:
+      - linux/amd64
+      - linux/arm64
+    args:                    # optional: each key becomes a --build-arg
+      pkg_installer: alpine
+```
+
+Builds the caller's own `Dockerfile` with the repo root as context, passing every `args` key plus
+`OS=<upstream.repo>:<upstream.tag>-<os>` (here `ghcr.io/bradfordwagner/base:4.7.1-alpine_3.24`) as build args.
+When two builds share an `os`, both use the first one's `args`. Pushes
+`ghcr.io/bradfordwagner/gh-template-custom-image:<version>-alpine_3.24` (multi-arch) and its per-arch tags.
+Inputs are mirror's. Upstream bases are on ghcr.io, so on ARC only `registry_cache: true` sends them through a cache.
+
 ### ARC routing
 
 The `product` job reads `vars.ARC_HOSTS`. In a reusable workflow that is the **caller** repo's variable
@@ -124,6 +147,7 @@ caching without this input; ghcr.io bases need it.
 ```sh
 ./test/mirror-product.sh   # needs yq v4 and jq
 ./test/ansible_playbook-product.sh
+./test/custom-product.sh
 yamllint --strict .
 actionlint
 ```

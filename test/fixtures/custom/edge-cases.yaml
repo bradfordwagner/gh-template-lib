@@ -1,0 +1,37 @@
+target_repo: ghcr.io/example/edge
+flavor: custom
+unknown_field: ignored
+upstream:
+  repo: ghcr.io/example/base
+  tag: 1.10
+builds:
+  - os: rockylinux_9
+    archs:
+      - linux/amd64
+      - linux/arm64
+    args:
+      pkg_installer: rhel
+      retries: 3
+      ratio: 0.50
+      debug: true
+      empty:
+      quoted: "a&b <c>"
+  - os: alpine_3.24
+    archs:
+      - linux/arm/v7
+      - linux/arm64/v8
+  - os: rockylinux_9
+    archs:
+      - linux/amd64
+    args:
+      pkg_installer: ignored-second-match
+  - os: debian_trixie
+    archs: []
+    args:
+      pkg_installer: debian
+  - os: ubuntu_noble
+    archs:
+      - linux/arm64
+    args:
+      OS: overridden-by-upstream
+      pkg_installer: debian

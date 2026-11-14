@@ -165,7 +165,8 @@ ansible_role pushes nothing, but fix it before anything ever publishes from that
 ### Flavor notes
 
 - **custom:** the lib passes every `builds[].args` key plus `OS=<upstream.repo>:<upstream.tag>-<os>` as build
-  args, as Dagger did. Upstream bases are on ghcr.io; set `registry_cache: true` if ARC pulls should go through
+  args, as Dagger did. Implemented; the template's `manifest-tool` job (its own Dagger install) is replaced by the lib's
+  `manifest`. Upstream bases are on ghcr.io; set `registry_cache: true` if ARC pulls should go through
   the cache.
 - **ansible_playbook:** Dagger copied the repo onto `/src` and ran `ansible-galaxy` / `ansible-playbook` by
   relative path without setting a workdir, so they ran in the upstream image's `WORKDIR`. For

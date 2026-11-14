@@ -1,0 +1,6 @@
+target_repo: ghcr.io/example/empty
+flavor: custom
+upstream:
+  repo: ghcr.io/example/base
+  tag: 1.0.0
+builds: []
