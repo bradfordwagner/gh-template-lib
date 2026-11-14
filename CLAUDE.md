@@ -9,7 +9,7 @@ its contract, so a template switches by replacing its jobs with one `uses:` line
 ## Layout
 
 - `.github/workflows/<flavor>.yml`: one reusable workflow per `flavor:` value (`mirror`, `custom`,
-  `ansible_playbook`, `ansible_role`). `mirror` and `custom` are implemented; the others are stubs that fail with a TODO.
+  `ansible_playbook`, `ansible_role`). All four flavors are implemented; `ansible_role` is test-only and pushes nothing.
 - `.github/workflows/ci.yml`: this repo's own CI (yamllint, actionlint with shellcheck, tests). Not callable.
 - `test/`: shell tests. `test/fixtures/<flavor>/` holds configs and expected outputs.
 - `docs/migration.md`: the plan for moving each template off Dagger.
@@ -45,6 +45,10 @@ custom (`builds/custom` in the module):
 code unchanged, outside the engine; `+arc` variants swap the arm64 runner. Never hand-edit them to make a test
 pass. Add a fixture for every behaviour you change.
 
+`test/ansible_role-product.sh` does the same for `ansible_role` against `builds/ansible.ProductJson`; `+arc`
+fixtures are the generated ones with the arm64 runner swapped. ansible_role entry fields, in order: `arch`, `os`,
+`runner`, `target_image`, `upstream_image`, `index`, `display`.
+
 ## Conventions
 
 - Logic lives inline in the workflow `run:` blocks, reading only `env:`. A reusable workflow cannot learn its
@@ -70,6 +74,7 @@ template only after its pin is bumped (Renovate does this).
 ./test/mirror-product.sh
 ./test/ansible_playbook-product.sh
 ./test/custom-product.sh
+./test/ansible_role-product.sh
 yamllint --strict .
 actionlint            # with shellcheck on PATH, it also lints run: blocks
 ```

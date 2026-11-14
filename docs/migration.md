@@ -118,8 +118,8 @@ jobs:
 The lib pin `@0.1.0` assumes the versioning default (**default, pending user OK**); the driver is the lib's
 `buildx_driver: docker` default, so templates pass no driver input (**default, pending user OK**).
 
-Only `mirror.yml` exists today; the other three are stubs that fail, so those templates switch only after their
-flavor lands here.
+`mirror.yml` and `ansible_role.yml` are implemented; the others are stubs that fail, so those templates switch only
+after their flavor lands here.
 
 ### `config.yaml`: one OS while testing
 
@@ -178,6 +178,7 @@ ansible_role pushes nothing, but fix it before anything ever publishes from that
   `secrets: GALAXY_TOKEN: ${{ secrets.GALAXY_TOKEN }}`: one place to change the Galaxy action, but every role
   repo's release then depends on a lib tag. A beta tag on the role template imports a beta into Galaxy, so
   decide whether beta tags should skip the publish job (e.g. `if: ${{ !contains(github.ref_name, '-beta') }}`).
+  Decided: beta and final tags both publish; the job stays as is.
 
 ## Downstream, after the templates
 
