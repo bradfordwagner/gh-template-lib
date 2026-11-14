@@ -181,8 +181,12 @@ jobs:
               docker.io "$CACHE_DOCKERIO" "$CACHE_DOCKERIO" \
               ghcr.io "$CACHE_GHCR" "$CACHE_GHCR")
           fi
+          # hosted daemons keep the classic image store and push Docker v2; BuildKit pushes OCI like ARC's dind
+          if [ "$driver" = docker ] && [ "$ON_ARC" != true ]; then
+            driver=docker-container
+          fi
           if [ "$driver" = docker-container ]; then
-            opts="image=moby/buildkit:$BUILDKIT_VERSION,network=host"
+            opts=$(printf 'image=moby/buildkit:%s\nnetwork=host' "$BUILDKIT_VERSION")
           fi
           if [ "$driver" = remote ] && [ -z "$ENDPOINT" ]; then
             echo "::error::buildx_driver=remote needs buildx_endpoint"
@@ -191,7 +195,9 @@ jobs:
           {
             echo "driver=$driver"
             echo "endpoint=$ENDPOINT"
-            echo "opts=$opts"
+            echo "opts<<EOF"
+            echo "$opts"
+            echo "EOF"
             echo "config<<EOF"
             echo "$config"
             echo "EOF"
@@ -215,13 +221,15 @@ jobs:
             args+=(--build-arg "$arg")
           done < <(jq -j '.[] | ., "\u0000"' <<<"$BUILD_ARGS")
           printf '%s\n' "${args[@]}"
+          # .git stays out of the image unless the repo ships its own .dockerignore
+          [ -e .dockerignore ] || printf '.git\n' > .dockerignore
           # provenance/sbom off keeps each per-arch tag a single manifest, as the Dagger module pushed
           docker buildx build \
             --platform "$ARCH" \
             "${args[@]}" \
             --provenance=false \
             --sbom=false \
-            --push \
+            --output "type=image,push=true,oci-mediatypes=true" \
             --tag "$TARGET-${ARCH//\//_}" \
             .
 

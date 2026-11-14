@@ -13,17 +13,17 @@ On ARC every job started its own Dagger engine inside its dind sidecar. Two fail
 `docker buildx` with the `docker` driver builds on the daemon the job already has. No engine image, no second
 DNS server, no module fetched from GitHub at job start.
 
-## Defaults pending user OK
+## Decisions
 
-These are working defaults. Each is marked **default, pending user OK** where it applies below; none is decided.
+These are working defaults. Each is marked decided where it applies below; none is decided.
 
-| Decision | Default, pending user OK | Alternative |
+| Decision | Chosen | Alternative |
 |---|---|---|
 | Galaxy publish for `ansible_role` | Stays a job in the template, `needs: container`; the lib never holds `GALAXY_TOKEN` | `galaxy_publish` input in the lib, caller passes the secret |
 | Lib versioning | Semver tags from `main`, first tag `0.1.0`; breaking input or product-contract change = major bump | — |
 | Dagger quirks | Kept unchanged for parity: only exactly `linux/arm64` gets an arm runner (`linux/arm64/v8` falls to `ubuntu-24.04`); `display` uses `repo`, not `repo_override`; builds sharing a `target_image` get one combined manifest | Fix them in a later major |
 | buildx driver | `docker` (runner's own daemon: no BuildKit image pull, least disk, inherits dind's docker.io mirror) | `docker-container` |
-| Manifest media types | Docker v2 manifests acceptable. Dagger pushed OCI; buildx's `docker` driver pushes Docker v2. Pulls do not care; unverified on a real push (bead gha-hpa) | Force OCI (`oci-mediatypes=true` needs `docker-container`) |
+| Manifest media types | OCI everywhere, as Dagger pushed: `oci-mediatypes=true`, and hosted runners use `docker-container` (their classic image store would push Docker v2). ARC's dind already pushes OCI with `docker` | Docker v2 on hosted |
 | Template tags | Finalize the in-flight Dagger ARC betas first, then the lib switch is the next minor's betas (below) | Continue the in-flight version as `-beta2` |
 
 ## Rollout scope
@@ -40,7 +40,7 @@ These are working defaults. Each is marked **default, pending user OK** where it
 
    Current state: the Dagger ARC routing is merged on each `main` and beta-tagged, all tag builds green:
    mirror `2.4.0-beta1`, custom `0.3.0-beta1`, ansible_playbook `2.6.0-beta1`, ansible_role `0.6.0-beta1`.
-   **Default, pending user OK:** cut those as final (`2.4.0`, `0.3.0`, `2.6.0`, `0.6.0`) so the last Dagger
+   **Done:** cut as final (`2.4.0`, `0.3.0`, `2.6.0`, `0.6.0`) so the last Dagger
    release is a clean rollback point, then release the lib switch as the next minor's betas: mirror
    `2.5.0-betaN`, custom `0.4.0-betaN`, ansible_playbook `2.7.0-betaN`, ansible_role `0.7.0-betaN`. Tag builds pass the ref name as `version`, so a beta pushes `<target_repo>:X.Y.Z-betaN-<os>`
    and never touches `latest-*` or a released tag.
@@ -113,13 +113,12 @@ jobs:
 
 `gh-template-ansible-role` differs: it pushes nothing, so both files drop `packages: write`, and
 `container_tags.yml` keeps its `ansible-role-publish` job unchanged except `needs: builds` becomes
-`needs: container`. Galaxy publish stays in the template (**default, pending user OK**).
+`needs: container`. Galaxy publish stays in the template (decided).
 
-The lib pin `@0.1.0` assumes the versioning default (**default, pending user OK**); the driver is the lib's
-`buildx_driver: docker` default, so templates pass no driver input (**default, pending user OK**).
+The lib pin `@0.1.0` assumes the versioning default (decided); the driver is the lib's
+`buildx_driver: docker` default, so templates pass no driver input (decided).
 
-`mirror.yml` and `ansible_role.yml` are implemented; the others are stubs that fail, so those templates switch only
-after their flavor lands here.
+All four flavors are implemented.
 
 ### `config.yaml`: one OS while testing
 
@@ -173,7 +172,7 @@ ansible_role pushes nothing, but fix it before anything ever publishes from that
   `ghcr.io/bradfordwagner/ansible` that is `/src` (its Dockerfile: `COPY . /src`, `WORKDIR /src`), so the paths
   resolve to the consumer's files, copied over what the upstream left in `/src`. The lib's generated Dockerfile
   does the same: `COPY . /src`, no `WORKDIR`, exec-form `RUN`. It excludes `.git` from the copy.
-- **ansible_role, Galaxy (default, pending user OK: template job):** keeping the publish job in the template
+- **ansible_role, Galaxy (decided: template job):** keeping the publish job in the template
   means the lib never holds `GALAXY_TOKEN`. The alternative is a `galaxy_publish: true` input with the caller passing
   `secrets: GALAXY_TOKEN: ${{ secrets.GALAXY_TOKEN }}`: one place to change the Galaxy action, but every role
   repo's release then depends on a lib tag. A beta tag on the role template imports a beta into Galaxy, so
@@ -218,8 +217,7 @@ for t in alpine_3.20 ubuntu_noble; do
 done
 ```
 
-Expect the same platforms and the same base layers. Media types differ: Dagger pushed OCI manifests, buildx's
-`docker` driver pushes Docker v2 manifests (accepted as **default, pending user OK**; gha-hpa). Pulls do not care. Delete the `lib-preview-*` versions from the
+Expect the same platforms and the same base layers. Media types match: OCI, as Dagger pushed. Delete the `lib-preview-*` versions from the
 package afterwards and remove the preview workflow before merging.
 
 The matrix itself is already checked offline: `test/mirror-product.sh` compares the lib's `product` to the
