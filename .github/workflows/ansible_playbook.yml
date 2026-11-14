@@ -225,7 +225,7 @@ jobs:
             --file "$RUNNER_TEMP/Dockerfile" \
             --provenance=false \
             --sbom=false \
-            --push \
+            --output "type=image,push=true,oci-mediatypes=true" \
             --tag "$TARGET-${ARCH//\//_}" \
             .
 

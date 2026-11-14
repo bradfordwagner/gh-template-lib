@@ -215,13 +215,15 @@ jobs:
             args+=(--build-arg "$arg")
           done < <(jq -j '.[] | ., "\u0000"' <<<"$BUILD_ARGS")
           printf '%s\n' "${args[@]}"
+          # .git stays out of the image unless the repo ships its own .dockerignore
+          [ -e .dockerignore ] || printf '.git\n' > .dockerignore
           # provenance/sbom off keeps each per-arch tag a single manifest, as the Dagger module pushed
           docker buildx build \
             --platform "$ARCH" \
             "${args[@]}" \
             --provenance=false \
             --sbom=false \
-            --push \
+            --output "type=image,push=true,oci-mediatypes=true" \
             --tag "$TARGET-${ARCH//\//_}" \
             .
 
