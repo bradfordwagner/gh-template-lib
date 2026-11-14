@@ -1,0 +1,6 @@
+target_repo: ghcr.io/example/no-upstream
+flavor: custom
+builds:
+  - os: alpine_3.24
+    archs:
+      - linux/amd64

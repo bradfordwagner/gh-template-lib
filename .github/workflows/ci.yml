@@ -44,3 +44,5 @@ jobs:
         run: ./test/mirror-product.sh
       - name: ansible_playbook product
         run: ./test/ansible_playbook-product.sh
+      - name: custom product
+        run: ./test/custom-product.sh
