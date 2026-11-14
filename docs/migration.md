@@ -167,8 +167,11 @@ ansible_role pushes nothing, but fix it before anything ever publishes from that
 - **custom:** the lib passes every `builds[].args` key plus `OS=<upstream.repo>:<upstream.tag>-<os>` as build
   args, as Dagger did. Upstream bases are on ghcr.io; set `registry_cache: true` if ARC pulls should go through
   the cache.
-- **ansible_playbook:** before implementing, confirm the working directory the playbooks ran in under Dagger
-  (it mounted the repo at `/src` but did not set the workdir) and match it.
+- **ansible_playbook:** Dagger copied the repo onto `/src` and ran `ansible-galaxy` / `ansible-playbook` by
+  relative path without setting a workdir, so they ran in the upstream image's `WORKDIR`. For
+  `ghcr.io/bradfordwagner/ansible` that is `/src` (its Dockerfile: `COPY . /src`, `WORKDIR /src`), so the paths
+  resolve to the consumer's files, copied over what the upstream left in `/src`. The lib's generated Dockerfile
+  does the same: `COPY . /src`, no `WORKDIR`, exec-form `RUN`. It excludes `.git` from the copy.
 - **ansible_role, Galaxy (default, pending user OK: template job):** keeping the publish job in the template
   means the lib never holds `GALAXY_TOKEN`. The alternative is a `galaxy_publish: true` input with the caller passing
   `secrets: GALAXY_TOKEN: ${{ secrets.GALAXY_TOKEN }}`: one place to change the Galaxy action, but every role

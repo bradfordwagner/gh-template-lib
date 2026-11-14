@@ -1,0 +1,24 @@
+target_repo: ghcr.io/example/edge
+flavor: ansible_playbook
+unknown_field: ignored
+upstream:
+  repo: ghcr.io/example/ansible
+  tag: 6.6
+builds:
+  - os: alpine_3.24
+    archs:
+      - linux/amd64
+      - linux/arm64
+  - os: 3.10
+    archs:
+      - linux/arm/v7
+      - linux/arm64/v8
+  - os: debian_trixie
+    archs: []
+  - os: "ubuntu_<noble>&co"
+    archs:
+      - linux/arm64
+  - os: true
+    archs:
+      - linux/amd64
+      -

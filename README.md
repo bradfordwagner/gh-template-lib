@@ -10,7 +10,7 @@ Each flavor is one reusable workflow, named after the `flavor:` in `config.yaml`
 |---|---|---|
 | `mirror` | `.github/workflows/mirror.yml` | implemented |
 | `custom` | `.github/workflows/custom.yml` | TODO (stub fails) |
-| `ansible_playbook` | `.github/workflows/ansible_playbook.yml` | TODO (stub fails) |
+| `ansible_playbook` | `.github/workflows/ansible_playbook.yml` | implemented |
 | `ansible_role` | `.github/workflows/ansible_role.yml` | TODO (stub fails) |
 
 Every flavor runs the same pipeline: `product` expands `builds × archs` into a matrix, one `builds` job per entry
@@ -64,6 +64,27 @@ Pushes `ghcr.io/bradfordwagner/template-mirror:<version>-alpine_3.20` (multi-arc
 `...-alpine_3.20-linux_amd64` and `...-alpine_3.20-linux_arm64`. When `commands` is set and the repo has a
 non-empty `scripts/` directory, it is copied to `/src/scripts`, made executable, and removed after the commands.
 
+## `config.yaml` (ansible_playbook)
+
+```yaml
+target_repo: ghcr.io/bradfordwagner/gh-template-ansible-playbook
+flavor: ansible_playbook
+builds:
+  - os: alpine_3.24
+    archs:
+      - linux/amd64
+      - linux/arm64
+upstream:
+  repo: ghcr.io/bradfordwagner/ansible
+  tag: 6.6.0
+```
+
+Each entry builds `FROM <upstream.repo>:<upstream.tag>-<os>`, copies the repo (minus `.git`) into `/src`, then runs
+`ansible-galaxy install -r` for `requirements.yml` and `meta/requirements.yml`, and `ansible-playbook` for `test.yml`
+and `playbook.yml`, each only if present, in that order. Like Dagger, it sets no `WORKDIR`: the commands run in
+the upstream image's own (`/src` for `ghcr.io/bradfordwagner/ansible`). Pushes
+`<target_repo>:<version>-<os>` (multi-arch) and its per-arch tags. Inputs are the same as mirror's.
+
 ## Inputs (mirror)
 
 | Input | Default | |
@@ -102,6 +123,7 @@ caching without this input; ghcr.io bases need it.
 
 ```sh
 ./test/mirror-product.sh   # needs yq v4 and jq
+./test/ansible_playbook-product.sh
 yamllint --strict .
 actionlint
 ```
