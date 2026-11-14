@@ -1,0 +1,7 @@
+target_repo: ghcr.io/example/role
+flavor: ansible_role
+builds:
+  - os: alpine_3.24
+    archs:
+      - linux/amd64
+      - linux/arm64

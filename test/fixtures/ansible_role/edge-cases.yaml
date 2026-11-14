@@ -1,0 +1,18 @@
+# scalars keep their source text, Go escapes & < >, only exactly linux/arm64 gets the arm runner
+target_repo: ghcr.io/example/a&b<c>
+flavor: ansible_role
+builds:
+  - os: 3.10
+    archs:
+      - linux/arm64/v8
+      - linux/arm64
+      -
+  - os: debian_<forky>&slim
+    archs:
+      - linux/amd64
+  - os: no_archs
+  - archs:
+      - linux/s390x
+upstream:
+  repo: ghcr.io/example/ansible
+  tag: 6.10

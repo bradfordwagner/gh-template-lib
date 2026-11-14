@@ -1,0 +1,4 @@
+[
+  "FROM :-alpine_3.24\nCOPY . /src\nRUN [\"ansible-galaxy\",\"install\",\"-r\",\"requirements.yml\"]\nRUN [\"ansible-galaxy\",\"install\",\"-r\",\"meta/requirements.yml\"]\nRUN [\"ansible-playbook\",\"test.yml\"]\nRUN [\"ansible-playbook\",\"playbook.yml\"]\n",
+  "FROM :-alpine_3.24\nCOPY . /src\nRUN [\"ansible-galaxy\",\"install\",\"-r\",\"requirements.yml\"]\nRUN [\"ansible-galaxy\",\"install\",\"-r\",\"meta/requirements.yml\"]\nRUN [\"ansible-playbook\",\"test.yml\"]\nRUN [\"ansible-playbook\",\"playbook.yml\"]\n"
+]
