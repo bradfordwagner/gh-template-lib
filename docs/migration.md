@@ -23,7 +23,7 @@ These are working defaults. Each is marked decided where it applies below; none 
 | Lib versioning | Semver tags from `main`, first tag `0.1.0`; breaking input or product-contract change = major bump | — |
 | Dagger quirks | Kept unchanged for parity: only exactly `linux/arm64` gets an arm runner (`linux/arm64/v8` falls to `ubuntu-24.04`); `display` uses `repo`, not `repo_override`; builds sharing a `target_image` get one combined manifest | Fix them in a later major |
 | buildx driver | `docker` (runner's own daemon: no BuildKit image pull, least disk, inherits dind's docker.io mirror) | `docker-container` |
-| Manifest media types | Docker v2 manifests acceptable. Dagger pushed OCI; buildx's `docker` driver pushes Docker v2. Pulls do not care; unverified on a real push (bead gha-hpa) | Force OCI (`oci-mediatypes=true` needs `docker-container`) |
+| Manifest media types | OCI everywhere, as Dagger pushed: `oci-mediatypes=true`, and hosted runners use `docker-container` (their classic image store would push Docker v2). ARC's dind already pushes OCI with `docker` | Docker v2 on hosted |
 | Template tags | Finalize the in-flight Dagger ARC betas first, then the lib switch is the next minor's betas (below) | Continue the in-flight version as `-beta2` |
 
 ## Rollout scope
@@ -217,8 +217,7 @@ for t in alpine_3.20 ubuntu_noble; do
 done
 ```
 
-Expect the same platforms and the same base layers. Media types differ: Dagger pushed OCI manifests, buildx's
-`docker` driver pushes Docker v2 manifests (accepted as decided; gha-hpa). Pulls do not care. Delete the `lib-preview-*` versions from the
+Expect the same platforms and the same base layers. Media types match: OCI, as Dagger pushed. Delete the `lib-preview-*` versions from the
 package afterwards and remove the preview workflow before merging.
 
 The matrix itself is already checked offline: `test/mirror-product.sh` compares the lib's `product` to the

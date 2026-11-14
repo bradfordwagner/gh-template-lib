@@ -181,6 +181,10 @@ jobs:
               docker.io "$CACHE_DOCKERIO" "$CACHE_DOCKERIO" \
               ghcr.io "$CACHE_GHCR" "$CACHE_GHCR")
           fi
+          # hosted daemons keep the classic image store and push Docker v2; BuildKit pushes OCI like ARC's dind
+          if [ "$driver" = docker ] && [ "$ON_ARC" != true ]; then
+            driver=docker-container
+          fi
           if [ "$driver" = docker-container ]; then
             opts="image=moby/buildkit:$BUILDKIT_VERSION,network=host"
           fi
