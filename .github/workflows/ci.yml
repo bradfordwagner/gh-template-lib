@@ -42,3 +42,5 @@ jobs:
           persist-credentials: false
       - name: mirror product
         run: ./test/mirror-product.sh
+      - name: ansible_playbook product
+        run: ./test/ansible_playbook-product.sh

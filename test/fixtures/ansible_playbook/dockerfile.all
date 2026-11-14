@@ -1,0 +1,6 @@
+FROM ghcr.io/example/ansible:6.6-alpine_3.24
+COPY . /src
+RUN ["ansible-galaxy", "install", "-r", "requirements.yml"]
+RUN ["ansible-galaxy", "install", "-r", "meta/requirements.yml"]
+RUN ["ansible-playbook", "test.yml"]
+RUN ["ansible-playbook", "playbook.yml"]
