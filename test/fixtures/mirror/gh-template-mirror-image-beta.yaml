@@ -1,0 +1,9 @@
+target_repo: ghcr.io/bradfordwagner/template-mirror
+flavor: mirror
+builds:
+    - repo: alpine
+      repo_override: ""
+      tag: "3.20"
+      archs:
+        - linux/amd64
+        - linux/arm64

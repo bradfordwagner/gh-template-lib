@@ -1,0 +1,38 @@
+name: custom
+# TODO: not implemented. Consumers of flavor 'custom' stay on dagger-container-builds until this lands.
+# See docs/migration.md for the plan. What this workflow needs:
+#
+# - product: builds x archs from config.yaml (`os`, `archs`, `args`, `upstream.repo`/`upstream.tag`).
+#   Entry fields, in order: arch, os, runner, target_image, upstream_image, index, display.
+#   target_image = <target_repo>:<version>-<os>; upstream_image = <upstream.repo>:<upstream.tag>-<os>;
+#   display = "<i>:<os>-<version>(<arch>)". Same runner and ARC rules as mirror.yml.
+# - build: `docker buildx build` on the caller's own Dockerfile, context `.`, with `--build-arg k=v` for every
+#   key of the matching build's `args` (matched by `os`, first wins) plus `--build-arg OS=<upstream_image>`.
+#   Push to <target_image>-<os>_<arch>, provenance and sbom off.
+# - manifest: same as mirror.yml.
+# - upstream bases are on ghcr.io, so on ARC `registry_cache` needs the ghcr.io mirror, not only docker.io.
+# - consumers: gh-template-custom-image, container-ansible.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Tag prefix for every image. Branch builds pass `latest`, tag builds pass the ref name.
+        type: string
+        default: latest
+      config:
+        description: Path to the flavor config, relative to the caller's repo root.
+        type: string
+        default: config.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  todo:
+    name: todo
+    runs-on: ubuntu-24.04
+    steps:
+      - name: not implemented
+        run: |
+          echo "::error::gh-template-lib: flavor 'custom' is not implemented yet; keep using dagger-container-builds"
+          exit 1

@@ -1,0 +1,34 @@
+name: ansible_role
+# TODO: not implemented. Consumers of flavor 'ansible_role' stay on dagger-container-builds until this lands.
+# See docs/migration.md for the plan. What this workflow needs:
+#
+# - product and build: as ansible_playbook, but the build is a test only: `docker buildx build` with no
+#   `--push` (output discarded). Dagger never published ansible_role images, and has no manifest for it.
+# - Galaxy import on tags: decide whether it stays a job in the template (today's
+#   robertdebock/galaxy-action after the builds) or moves here behind a `galaxy_publish` input with a
+#   GALAXY_TOKEN secret passed by the caller (`secrets: inherit` or explicit). See docs/migration.md.
+# - consumer: gh-template-ansible-role, and every ansible-role-* repo made from it.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Tag prefix for every image. Branch builds pass `latest`, tag builds pass the ref name.
+        type: string
+        default: latest
+      config:
+        description: Path to the flavor config, relative to the caller's repo root.
+        type: string
+        default: config.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  todo:
+    name: todo
+    runs-on: ubuntu-24.04
+    steps:
+      - name: not implemented
+        run: |
+          echo "::error::gh-template-lib: flavor 'ansible_role' is not implemented yet; keep using dagger-container-builds"
+          exit 1

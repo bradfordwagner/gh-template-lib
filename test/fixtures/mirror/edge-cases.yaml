@@ -1,0 +1,32 @@
+target_repo: ghcr.io/example/edge
+flavor: mirror
+unknown_field: ignored
+builds:
+  - repo: rockylinux
+    repo_override: rocky
+    tag: 8
+    archs:
+      - linux/amd64
+      - linux/arm64
+  - repo: python
+    tag: 3.10
+    archs:
+      - linux/arm/v7
+      - linux/arm64/v8
+    commands:
+      - apk add --no-cache bash && echo "<ok>" > /tmp/x
+      - scripts/setup.sh
+  - repo: debian
+    repo_override: ""
+    tag: bookworm
+    archs: []
+    commands: []
+  - repo: alpine
+    tag: "3.20"
+    archs:
+      - linux/arm64
+    commands: []
+  - repo: busybox
+    tag: true
+    archs:
+      - linux/amd64
