@@ -1,0 +1,36 @@
+name: ansible_playbook
+# TODO: not implemented. Consumers of flavor 'ansible_playbook' stay on dagger-container-builds until this lands.
+# See docs/migration.md for the plan. What this workflow needs:
+#
+# - product: same entry shape as custom (no args); target_image = <target_repo>:<version>-<os>.
+# - build: a generated Dockerfile `FROM <upstream_image>`, `COPY . /src`, `WORKDIR /src`, then
+#   `RUN ansible-galaxy install -r <file>` for requirements.yml and meta/requirements.yml if present, then
+#   `RUN ansible-playbook <file>` for test.yml and playbook.yml if present, in that order.
+#   Check: Dagger ran with the image's default workdir and the playbooks by relative path, with /src
+#   mounted, not as the workdir. Confirm the upstream image WORKDIR before copying that behaviour.
+# - manifest: same as mirror.yml.
+# - consumer: gh-template-ansible-playbook.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Tag prefix for every image. Branch builds pass `latest`, tag builds pass the ref name.
+        type: string
+        default: latest
+      config:
+        description: Path to the flavor config, relative to the caller's repo root.
+        type: string
+        default: config.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  todo:
+    name: todo
+    runs-on: ubuntu-24.04
+    steps:
+      - name: not implemented
+        run: |
+          echo "::error::gh-template-lib: flavor 'ansible_playbook' is not implemented yet; keep using dagger-container-builds"
+          exit 1

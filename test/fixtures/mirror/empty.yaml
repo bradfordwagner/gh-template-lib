@@ -1,0 +1,3 @@
+target_repo: ghcr.io/example/empty
+flavor: mirror
+builds: []
