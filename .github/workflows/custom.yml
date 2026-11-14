@@ -186,7 +186,7 @@ jobs:
             driver=docker-container
           fi
           if [ "$driver" = docker-container ]; then
-            opts="image=moby/buildkit:$BUILDKIT_VERSION,network=host"
+            opts=$(printf 'image=moby/buildkit:%s\nnetwork=host' "$BUILDKIT_VERSION")
           fi
           if [ "$driver" = remote ] && [ -z "$ENDPOINT" ]; then
             echo "::error::buildx_driver=remote needs buildx_endpoint"
@@ -195,7 +195,9 @@ jobs:
           {
             echo "driver=$driver"
             echo "endpoint=$ENDPOINT"
-            echo "opts=$opts"
+            echo "opts<<EOF"
+            echo "$opts"
+            echo "EOF"
             echo "config<<EOF"
             echo "$config"
             echo "EOF"
