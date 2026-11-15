@@ -161,6 +161,26 @@ ran them. The `product` entry fields, in order: `arch`, `os`, `runner`, `target_
 `index`, `display` (`<index>:<os>-<version>(<arch>)`). Inputs are mirror's, minus the ghcr.io login; outputs:
 `product` only. Galaxy import stays a job in the caller, `needs: container`.
 
+## Releasing
+
+Tag semver from `main`. A breaking input or product-contract change is a major bump. A lib tag reaches images
+only through the repos that pin it, in this order. Each tier starts only once the tier above is tagged final and
+green.
+
+1. **Lib:** tag `X.Y.Z`.
+2. **Templates:** `gh-template-mirror-image` first, then `gh-template-custom-image` and
+   `gh-template-ansible-playbook`, then `gh-template-ansible-role` last. The role template's tag runs publish to
+   Galaxy, and every `ansible-role-*` repo inherits it. Each template bumps its `uses: ...@<lib-tag>` pin and cuts
+   `X.Y.Z-betaN` tags until the tag build is green with the full OS list. Then it cuts the final `X.Y.Z`.
+3. **`container-base`** (mirror) syncs its workflows from the mirror template and tags.
+4. **`container-ansible`** (custom) syncs from the custom template, bumps `upstream.tag` to the new base and tags.
+   Wait until the base tag is listed in the registry, not just until its build is green.
+5. **Consumers** sync from their template and bump their `ghcr.io/bradfordwagner/ansible` pin once the ansible
+   tag is listed in the registry. These are the `ansible_playbook` images, such as `container-pack`, and the
+   `ansible-role-*` repos. Other `custom` images such as `container-goreleaser` and `container-redis` sync from the custom template.
+
+Push tags one at a time. GitHub fires no tag workflows when more than three tags arrive in one push.
+
 ## Development
 
 ```sh
