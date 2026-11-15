@@ -63,7 +63,7 @@ permissions:
 jobs:
   product:
     name: product
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       product: ${{ steps.product.outputs.product }}
       build_args: ${{ steps.product.outputs.build_args }}
@@ -109,8 +109,8 @@ jobs:
                     arch: $arch,
                     os: $os,
                     runner: (if $arch == "linux/arm64"
-                             then (if $arc then $arc_label else "ubuntu-24.04-arm" end)
-                             else "ubuntu-24.04" end),
+                             then (if $arc then $arc_label else "ubuntu-26.04-arm" end)
+                             else "ubuntu-26.04" end),
                     target_image: "\($target_repo):\($version)-\($os)",
                     upstream_image: "\($upstream)-\($os)",
                     index: $i,
@@ -236,7 +236,7 @@ jobs:
   manifest:
     name: manifest
     needs: [product, builds]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: write

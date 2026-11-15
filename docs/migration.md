@@ -21,7 +21,7 @@ These are working defaults. Each is marked decided where it applies below; none 
 |---|---|---|
 | Galaxy publish for `ansible_role` | Stays a job in the template, `needs: container`; the lib never holds `GALAXY_TOKEN` | `galaxy_publish` input in the lib, caller passes the secret |
 | Lib versioning | Semver tags from `main`, first tag `0.1.0`; breaking input or product-contract change = major bump | — |
-| Dagger quirks | Kept unchanged for parity: only exactly `linux/arm64` gets an arm runner (`linux/arm64/v8` falls to `ubuntu-24.04`); `display` uses `repo`, not `repo_override`; builds sharing a `target_image` get one combined manifest | Fix them in a later major |
+| Dagger quirks | Kept unchanged for parity: only exactly `linux/arm64` gets an arm runner (`linux/arm64/v8` falls to `ubuntu-26.04`); `display` uses `repo`, not `repo_override`; builds sharing a `target_image` get one combined manifest | Fix them in a later major |
 | buildx driver | `docker` (runner's own daemon: no BuildKit image pull, least disk, inherits dind's docker.io mirror) | `docker-container` |
 | Manifest media types | OCI everywhere, as Dagger pushed: `oci-mediatypes=true`, and hosted runners use `docker-container` (their classic image store would push Docker v2). ARC's dind already pushes OCI with `docker` | Docker v2 on hosted |
 | Template tags | Finalize the in-flight Dagger ARC betas first, then the lib switch is the next minor's betas (below) | Continue the in-flight version as `-beta2` |
@@ -31,7 +31,7 @@ These are working defaults. Each is marked decided where it applies below; none 
 1. **The four templates only:** `gh-template-mirror-image`, `gh-template-custom-image`,
    `gh-template-ansible-playbook`, `gh-template-ansible-role`. Nothing downstream moves yet.
 2. **ARC is in scope from the start.** arm64 entries run on `arc-arm64` while the template's `ARC_HOSTS`
-   variable is non-empty, else on hosted `ubuntu-24.04-arm` (the lib's default `arc: auto`). amd64 stays hosted.
+   variable is non-empty, else on hosted `ubuntu-26.04-arm` (the lib's default `arc: auto`). amd64 stays hosted.
 3. **One OS while testing.** Each template's `config.yaml` is cut to a single OS that builds both
    `linux/amd64` and `linux/arm64`, so a run is one amd64 job, one arm64 job and one manifest. Once that is green
    on a beta tag, restore the full OS list in a follow-up commit and cut another beta.
