@@ -1,1 +1,1 @@
-[{"arch":"linux/amd64","os":"alpine_3.24","runner":"ubuntu-24.04","target_image":"ghcr.io/example/no-upstream:1.2.3-alpine_3.24","upstream_image":":-alpine_3.24","index":0,"display":"0:alpine_3.24-1.2.3(linux/amd64)"}]
+[{"arch":"linux/amd64","os":"alpine_3.24","runner":"ubuntu-26.04","target_image":"ghcr.io/example/no-upstream:1.2.3-alpine_3.24","upstream_image":":-alpine_3.24","index":0,"display":"0:alpine_3.24-1.2.3(linux/amd64)"}]

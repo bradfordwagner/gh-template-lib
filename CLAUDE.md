@@ -23,7 +23,7 @@ The `product` output is the build matrix, and it must match what `dagger-contain
 - mirror entry fields, in order: `repo`, `tag`, `arch`, `runner`, `target_image`, `commands`, `index`, `display`.
 - `target_image` = `<target_repo>:<version>-<repo_override or repo>_<tag>`, no arch suffix.
 - `display` = `<index>:<repo>-<version>(<arch>)` (uses `repo`, not `repo_override`).
-- `runner`: exactly `linux/arm64` maps to `ubuntu-24.04-arm`, anything else to `ubuntu-24.04`. The one intended
+- `runner`: exactly `linux/arm64` maps to `ubuntu-26.04-arm`, anything else to `ubuntu-26.04`. The one intended
   difference from Dagger: with ARC on, arm64 entries get `arc_runner_label` instead.
 - Scalars are taken as their YAML source text (`tag: 3.10` is `"3.10"`), as yaml.v2 did.
 - Per-arch tags are `<target_image>-<os>_<arch>`; `manifest` combines them into `<target_image>`.
@@ -57,7 +57,7 @@ fixtures are the generated ones with the arm64 runner swapped. ansible_role entr
 - Never interpolate `${{ }}` into `run:`; pass values through `env:`.
 - Actions are pinned by digest with the version in a comment; Renovate (`helpers:pinGitHubActionDigests`) bumps
   them. Tool versions sit under a `# renovate:` comment on the line above.
-- Hosted runner names are pinned (`ubuntu-24.04`), never `-latest`.
+- Hosted runner names are pinned (`ubuntu-26.04`), never `-latest`.
 - `buildx build` runs with `--provenance=false --sbom=false` so each per-arch tag is a single image manifest.
 - The registry caches are optional and off by default; refer to them only by their `host.k3d.internal:500x`
   address.
